@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadowrocket QR Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+            text-align: center;
+        }
+        
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .protocol-select {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .protocol-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .protocol-btn:hover {
+            border-color: #667eea;
+        }
+        
+        .protocol-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .generate-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .generate-btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .generate-btn:active {
+            transform: translateY(0);
+        }
+        
+        .qr-container {
+            margin-top: 30px;
+            text-align: center;
+            display: none;
+        }
+        
+        .qr-container.show {
+            display: block;
+        }
+        
+        #qrcode {
+            display: inline-block;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .config-url {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            word-break: break-all;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .helper-text {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Shadowrocket QR</h1>
+        <p class="subtitle">Generate QR codes for proxy configuration</p>
+        
+        <div class="form-group">
+            <label>Protocol Type</label>
+            <div class="protocol-select">
+                <button class="protocol-btn active" data-protocol="socks5">SOCKS5</button>
+                <button class="protocol-btn" data-protocol="https">HTTPS</button>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Proxy Configuration</label>
+            <input type="text" id="proxyInput" placeholder="host:port:username:password">
+            <div class="helper-text">Example: ultra.marsproxies.com:44445:user:pass</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Proxy Name (Optional)</label>
+            <input type="text" id="proxyName" placeholder="My Proxy">
+        </div>
+        
+        <button class="generate-btn" onclick="generateQR()">Generate QR Code</button>
+        
+        <div class="qr-container" id="qrContainer">
+            <div id="qrcode"></div>
+            <div class="config-url" id="configUrl"></div>
+        </div>
+    </div>
+
+    <script>
+        let selectedProtocol = 'socks5';
+        let qrInstance = null;
+        
+        // Protocol selection
+        document.querySelectorAll('.protocol-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.protocol-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedProtocol = this.dataset.protocol;
+            });
+        });
+        
+        function generateQR() {
+            const input = document.getElementById('proxyInput').value.trim();
+            const name = document.getElementById('proxyName').value.trim() || 'Proxy';
+            
+            if (!input) {
+                alert('Please enter proxy configuration');
+                return;
+            }
+            
+            const parts = input.split(':');
+            if (parts.length < 4) {
+                alert('Invalid format. Use: host:port:username:password');
+                return;
+            }
+            
+            const host = parts[0];
+            const port = parts[1];
+            const username = parts.slice(2, -1).join(':'); // Handle usernames with colons
+            const password = parts[parts.length - 1];
+            
+            // Encode credentials
+            const encodedUsername = encodeURIComponent(username);
+            const encodedPassword = encodeURIComponent(password);
+            
+            // Generate Shadowrocket URL
+            let configUrl;
+            if (selectedProtocol === 'socks5') {
+                configUrl = `socks5://${encodedUsername}:${encodedPassword}@${host}:${port}#${encodeURIComponent(name)}`;
+            } else {
+                configUrl = `https://${encodedUsername}:${encodedPassword}@${host}:${port}#${encodeURIComponent(name)}`;
+            }
+            
+            // Clear previous QR code
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+            
+            // Generate new QR code
+            new QRCode(qrContainer, {
+                text: configUrl,
+                width: 256,
+                height: 256,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            
+            // Display config URL
+            document.getElementById('configUrl').textContent = configUrl;
+            
+            // Show QR container
+            document.getElementById('qrContainer').classList.add('show');
+        }
+        
+        // Allow Enter key to generate
+        document.getElementById('proxyInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateQR();
+            }
+        });
+    </script>
+</body>
+</html>
